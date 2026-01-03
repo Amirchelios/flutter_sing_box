@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_sing_box/flutter_sing_box.dart';
 import 'package:flutter_sing_box_example/utils/client_providers.dart';
+import 'package:flutter_sing_box_example/ui/app_theme.dart';
 
 class ConnectedOverview extends ConsumerStatefulWidget {
   const ConnectedOverview({super.key});
@@ -67,14 +68,19 @@ class _ConnectedOverviewState extends ConsumerState<ConnectedOverview> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_profile?.name ?? '服务未启动')),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _buildConnectedStatus(),
-            _buildClashMode(),
-            _buildGroups(),
-          ],
+      appBar: AppBar(title: Text(_profile?.name ?? 'Overview')),
+      body: AppBackground(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          child: Column(
+            children: [
+              _buildConnectedStatus(),
+              const SizedBox(height: 16),
+              _buildClashMode(),
+              const SizedBox(height: 16),
+              _buildGroups(),
+            ],
+          ),
         ),
       ),
     );
@@ -93,32 +99,52 @@ class _ConnectedOverviewState extends ConsumerState<ConnectedOverview> {
     final asyncStatus = ref.watch(connectedStreamProvider);
     return asyncStatus.when(
       data: (status) {
-        return Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            children: [
-              buildStatusRow(
-                'Memory: ${status.memory}',
-                'Goroutines: ${status.goroutines}',
-              ),
-              buildStatusRow(
-                'ConnectionsIn: ${status.connectionsIn}',
-                'ConnectionsOut: ${status.connectionsOut}',
-              ),
-              buildStatusRow(
-                'Uplink: ${status.uplink}',
-                'Downlink: ${status.downlink}',
-              ),
-              buildStatusRow(
-                'UplinkTotal: ${status.uplinkTotal}',
-                'DownlinkTotal: ${status.downlinkTotal}',
-              ),
-            ],
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Live stats',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+                const SizedBox(height: 12),
+                buildStatusRow(
+                  'Memory: ${status.memory}',
+                  'Goroutines: ${status.goroutines}',
+                ),
+                buildStatusRow(
+                  'Connections In: ${status.connectionsIn}',
+                  'Connections Out: ${status.connectionsOut}',
+                ),
+                buildStatusRow(
+                  'Uplink: ${status.uplink}',
+                  'Downlink: ${status.downlink}',
+                ),
+                buildStatusRow(
+                  'Uplink Total: ${status.uplinkTotal}',
+                  'Downlink Total: ${status.downlinkTotal}',
+                ),
+              ],
+            ),
           ),
         );
       },
-      loading: () => Text('Connected status: loading...'),
-      error: (error, stack) => Text('Connected status error: $error'),
+      loading: () => const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Text('Connected status: loading...'),
+        ),
+      ),
+      error: (error, stack) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text('Connected status error: $error'),
+        ),
+      ),
     );
   }
 
@@ -126,23 +152,21 @@ class _ConnectedOverviewState extends ConsumerState<ConnectedOverview> {
     List<Widget> buildChildren(ClientClashMode clashMode) {
       return clashMode.modes
           .map((mode) {
+            final bool isActive = mode == clashMode.currentMode;
             return OutlinedButton(
               onPressed: () {
                 ref.read(flutterSingBoxProvider).setClashMode(mode);
               },
               style: OutlinedButton.styleFrom(
-                backgroundColor: mode == clashMode.currentMode
-                    ? Colors.blue
-                    : Colors.white,
-              ),
-              child: Text(
-                mode,
-                style: TextStyle(
-                  color: mode == clashMode.currentMode
-                      ? Colors.white
-                      : Colors.blue,
+                backgroundColor: isActive ? AppTheme.teal : Colors.white,
+                foregroundColor: isActive ? Colors.white : AppTheme.ink,
+                side: BorderSide(
+                  color: isActive
+                      ? AppTheme.teal
+                      : AppTheme.ink.withOpacity(0.2),
                 ),
               ),
+              child: Text(mode),
             );
           })
           .toList(growable: false);
@@ -151,13 +175,41 @@ class _ConnectedOverviewState extends ConsumerState<ConnectedOverview> {
     final asyncClashMode = ref.watch(clashModeStreamProvider);
     return asyncClashMode.when(
       data: (data) {
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: buildChildren(data),
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Clash mode',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: buildChildren(data),
+                ),
+              ],
+            ),
+          ),
         );
       },
-      loading: () => Text('Clash Mode loading...'),
-      error: (error, stack) => Text('Clash Mode Error: $error'),
+      loading: () => const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Text('Clash Mode loading...'),
+        ),
+      ),
+      error: (error, stack) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text('Clash Mode Error: $error'),
+        ),
+      ),
     );
   }
 
@@ -183,64 +235,79 @@ class _ConnectedOverviewState extends ConsumerState<ConnectedOverview> {
           loading: () {},
           error: (error, stack) {},
         );
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: ExpansionPanelList(
-        expansionCallback: (int index, bool isExpanded) {
-          setState(() {
-            _groupItems[index].isExpanded = isExpanded;
-          });
-          ref
-              .read(flutterSingBoxProvider)
-              .setGroupExpand(
-                groupTag: _groupItems[index].outbound.tag,
-                isExpand: isExpanded,
-              );
-        },
-        children: _groupItems.map((item) {
-          return ExpansionPanel(
-            canTapOnHeader: true,
-            headerBuilder: (BuildContext context, bool isExpanded) {
-              return Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Column(
-                  spacing: 8.0,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(child: Text(item.outbound.tag)),
-                        IconButton(
-                          icon: Icon(Icons.speed),
-                          onPressed: () {
-                            ref
-                                .read(flutterSingBoxProvider)
-                                .urlTest(groupTag: item.outbound.tag);
-                          },
-                        ),
-                        Text((item.outbound.outbounds?.length ?? 0).toString()),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        Text(item.outbound.type),
-                        SizedBox(width: 12.0),
-                        Expanded(
-                          child: Text(
-                            item.selected ?? '',
-                            overflow: TextOverflow.ellipsis,
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: ExpansionPanelList(
+          elevation: 0,
+          expandedHeaderPadding: EdgeInsets.zero,
+          expansionCallback: (int index, bool isExpanded) {
+            setState(() {
+              _groupItems[index].isExpanded = isExpanded;
+            });
+            ref
+                .read(flutterSingBoxProvider)
+                .setGroupExpand(
+                  groupTag: _groupItems[index].outbound.tag,
+                  isExpand: isExpanded,
+                );
+          },
+          children: _groupItems.map((item) {
+            return ExpansionPanel(
+              canTapOnHeader: true,
+              backgroundColor: Colors.transparent,
+              headerBuilder: (BuildContext context, bool isExpanded) {
+                return Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              item.outbound.tag,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w600),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              );
-            },
-            body: _buildOutboundItem(item),
-            isExpanded: item.isExpanded,
-          );
-        }).toList(),
+                          IconButton(
+                            icon: const Icon(Icons.speed),
+                            onPressed: () {
+                              ref
+                                  .read(flutterSingBoxProvider)
+                                  .urlTest(groupTag: item.outbound.tag);
+                            },
+                          ),
+                          Text((item.outbound.outbounds?.length ?? 0).toString()),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          Text(item.outbound.type),
+                          const SizedBox(width: 12.0),
+                          Expanded(
+                            child: Text(
+                              item.selected ?? '',
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: AppTheme.ink.withOpacity(0.6),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+              body: _buildOutboundItem(item),
+              isExpanded: item.isExpanded,
+            );
+          }).toList(),
+        ),
       ),
     );
   }
@@ -269,6 +336,7 @@ class _ConnectedOverviewState extends ConsumerState<ConnectedOverview> {
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         children: outbounds.map((outbound) {
+          final bool isSelected = groupItem.selected == outbound.tag;
           return Card(
             child: InkWell(
               onTap: groupItem.outbound.type != OutboundType.selector
@@ -278,37 +346,31 @@ class _ConnectedOverviewState extends ConsumerState<ConnectedOverview> {
                     },
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                color: groupItem.selected == outbound.tag
-                    ? Colors.blueAccent
-                    : Colors.white,
+                color: isSelected ? AppTheme.teal : Colors.white,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Spacer(),
+                    const Spacer(),
                     Text(
                       outbound.tag,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 12.0,
-                        color: groupItem.selected == outbound.tag
-                            ? Colors.white
-                            : Colors.black,
+                        color: isSelected ? Colors.white : AppTheme.ink,
                       ),
                     ),
-                    Spacer(),
+                    const Spacer(),
                     Row(
                       children: [
                         Text(
                           outbound.type,
                           style: TextStyle(
                             fontSize: 12.0,
-                            color: groupItem.selected == outbound.tag
-                                ? Colors.white
-                                : Colors.black,
+                            color: isSelected ? Colors.white : AppTheme.ink,
                           ),
                         ),
-                        SizedBox(width: 8.0),
+                        const SizedBox(width: 8.0),
                         Text(
                           groupItem.items
                               .firstWhere(
@@ -323,10 +385,15 @@ class _ConnectedOverviewState extends ConsumerState<ConnectedOverview> {
                               )
                               .urlTestDelay
                               .toString(),
+                          style: TextStyle(
+                            color: isSelected
+                                ? Colors.white
+                                : AppTheme.ink.withOpacity(0.7),
+                          ),
                         ),
                       ],
                     ),
-                    Spacer(),
+                    const Spacer(),
                   ],
                 ),
               ),
@@ -335,11 +402,6 @@ class _ConnectedOverviewState extends ConsumerState<ConnectedOverview> {
         }).toList(),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
   }
 }
 

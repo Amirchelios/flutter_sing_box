@@ -97,6 +97,7 @@ class Tls {
   @JsonKey(name: "server_name")
   String? serverName;
   Utls? utls;
+  Reality? reality;
 
   Tls({
     this.alpn,
@@ -105,6 +106,7 @@ class Tls {
     required this.insecure,
     this.serverName,
     this.utls,
+    this.reality,
   });
 
   factory Tls.fromJson(Map<String, dynamic> json) => _$TlsFromJson(json);
@@ -126,6 +128,28 @@ class Utls {
   factory Utls.fromJson(Map<String, dynamic> json) => _$UtlsFromJson(json);
 
   Map<String, dynamic> toJson() => _$UtlsToJson(this);
+}
+
+@JsonSerializable()
+class Reality {
+  bool enabled;
+  @JsonKey(name: "public_key")
+  String? publicKey;
+  @JsonKey(name: "short_id")
+  String? shortId;
+  @JsonKey(name: "spider_x")
+  String? spiderX;
+
+  Reality({
+    required this.enabled,
+    this.publicKey,
+    this.shortId,
+    this.spiderX,
+  });
+
+  factory Reality.fromJson(Map<String, dynamic> json) => _$RealityFromJson(json);
+
+  Map<String, dynamic> toJson() => _$RealityToJson(this);
 }
 
 @JsonSerializable()

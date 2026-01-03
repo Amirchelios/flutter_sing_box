@@ -8,6 +8,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../utils/snackbar_util.dart';
 import 'config_profiles.dart';
+import '../ui/app_theme.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -101,119 +102,248 @@ class _HomePageState extends ConsumerState<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Plugin example app'),
+        title: const Text('SingBox Console'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.menu),
+            icon: const Icon(Icons.tune),
+            tooltip: 'Profiles',
             onPressed: () async {
               await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => ConfigProfiles())
+                context,
+                MaterialPageRoute(builder: (context) => ConfigProfiles()),
               );
               _loadProfiles();
             },
           ),
         ],
       ),
-      floatingActionButton: _buildFloatingActionButton(),
-      body: _buildBody(),
-    );
-  }
-
-  Widget _buildFloatingActionButton() {
-    Widget buildButton(ProxyState proxyState) {
-      return  FloatingActionButton(
-        onPressed: () async {
-          if (proxyState == ProxyState.started || proxyState == ProxyState.starting) {
-            await FlutterSingBox().stopVpn();
-          } else {
-            await _startVpn();
-          }
-        },
-        child: (proxyState == ProxyState.started || proxyState == ProxyState.starting)
-            ? const Icon(Icons.stop)
-            : const Icon(Icons.play_arrow),
-      );
-    }
-    final asyncProxyState = ref.watch(proxyStateStreamProvider);
-    return asyncProxyState.when(
-      data: (data) {
-        return buildButton(data);
-      },
-      error: (error, stack) {
-        return FloatingActionButton( onPressed: null, child: Icon(Icons.error),);
-      },
-      loading: () => buildButton(ProxyState.stopped),
-    );
-  }
-
-  Widget _buildBody() {
-    return Stack(
-      children: [
-        Column(
-          children: [
-            Expanded(
-              flex: 1,
-              child: _profiles.isEmpty
-                  ? const Center( child: Text('No subscription'),)
-                  : ListView.builder(
-                  itemCount: _profiles.length,
-                  itemBuilder: (context, index) {
-                    return _buildProfileItem(_profiles[index]);
-                  }
-              ),
-            ),
-          ],
-        ),
-        Positioned(
-          bottom: 16,
-          left: 16,
-          child: _buildOverviewButton(),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildProfileItem(Profile profile) {
-    return ListTile(
-      title: Text(profile.name),
-      subtitle: Text(DateTime.fromMillisecondsSinceEpoch(profile.typed.lastUpdated).toString()),
-      trailing: IconButton(
-        icon: _selectedProfile?.id == profile.id
-            ? const Icon(Icons.radio_button_checked)
-            : const Icon(Icons.radio_button_unchecked),
-        onPressed: () {
-          if (_selectedProfile?.id != profile.id) {
-            _switchProfile(profile.id);
-          }
-        },
+      body: AppBackground(
+        child: _buildBody(),
       ),
     );
   }
 
-  Widget _buildOverviewButton() {
+  Widget _buildBody() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+      child: Column(
+        children: [
+          _buildHeader(),
+          const SizedBox(height: 16),
+          _buildActionRow(),
+          const SizedBox(height: 16),
+          Expanded(child: _buildProfilesSection()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
     final asyncProxyState = ref.watch(proxyStateStreamProvider);
     return asyncProxyState.when(
-      data: (data) {
-        if ( data == ProxyState.started || data == ProxyState.starting) {
-          return FloatingActionButton(
-            heroTag: 'overview',
-            onPressed: () {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => ConnectedOverview())
-              );
-            },
-            child: const Icon(Icons.data_exploration),
-          );
-        } else {
-          return const SizedBox.shrink();
-        }
+      data: (state) {
+        final isRunning = state == ProxyState.started || state == ProxyState.starting;
+        final statusText = isRunning ? 'Running' : 'Stopped';
+        final statusColor = isRunning ? AppTheme.teal : AppTheme.coral;
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: statusColor,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      statusText,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: statusColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                    const Spacer(),
+                    _buildOverviewButton(isRunning),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _selectedProfile?.name ?? 'No profile selected',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: AppTheme.ink,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _selectedProfile == null
+                      ? 'Add a profile to start routing traffic.'
+                      : 'Tap a profile below to switch.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppTheme.ink.withOpacity(0.6),
+                      ),
+                ),
+              ],
+            ),
+          ),
+        );
       },
       error: (error, stack) {
         return const SizedBox.shrink();
       },
       loading: () => const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildActionRow() {
+    final asyncProxyState = ref.watch(proxyStateStreamProvider);
+    return asyncProxyState.when(
+      data: (state) {
+        final isRunning = state == ProxyState.started || state == ProxyState.starting;
+        return Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  if (isRunning) {
+                    await FlutterSingBox().stopVpn();
+                  } else {
+                    await _startVpn();
+                  }
+                },
+                icon: Icon(isRunning ? Icons.stop_rounded : Icons.play_arrow_rounded),
+                label: Text(isRunning ? 'Stop' : 'Start'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.coal,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => ConfigProfiles()),
+                  );
+                  _loadProfiles();
+                },
+                icon: const Icon(Icons.add_circle_outline),
+                label: const Text('Add Profile'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.ink,
+                  side: BorderSide(color: AppTheme.ink.withOpacity(0.15)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+      error: (error, stack) => const SizedBox.shrink(),
+      loading: () => const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildProfilesSection() {
+    if (_profiles.isEmpty) {
+      return Card(
+        child: Center(
+          child: Text(
+            'No profiles yet. Add one to begin.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ),
+      );
+    }
+    return ListView.separated(
+      itemCount: _profiles.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        return _buildProfileItem(_profiles[index]);
+      },
+    );
+  }
+
+  Widget _buildProfileItem(Profile profile) {
+    final bool isSelected = _selectedProfile?.id == profile.id;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOutCubic,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isSelected ? AppTheme.teal : Colors.transparent,
+          width: 1.5,
+        ),
+      ),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: ListTile(
+          title: Text(
+            profile.name,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          subtitle: Text(
+            'Updated: ${DateTime.fromMillisecondsSinceEpoch(profile.typed.lastUpdated)}',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppTheme.ink.withOpacity(0.6),
+                ),
+          ),
+          trailing: IconButton(
+            icon: Icon(
+              isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+              color: isSelected ? AppTheme.teal : AppTheme.ink.withOpacity(0.4),
+            ),
+            onPressed: () {
+              if (!isSelected) {
+                _switchProfile(profile.id);
+              }
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOverviewButton(bool isRunning) {
+    if (!isRunning) {
+      return const SizedBox.shrink();
+    }
+    return OutlinedButton.icon(
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => ConnectedOverview()),
+        );
+      },
+      icon: const Icon(Icons.data_usage),
+      label: const Text('Overview'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppTheme.ink,
+        side: BorderSide(color: AppTheme.ink.withOpacity(0.15)),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+      ),
     );
   }
 

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_sing_box/flutter_sing_box.dart';
 
 
- class Base64Provider {
+class Base64Provider {
   static List<Outbound> provide(String data) {
     final base64String = data.replaceAll(RegExp(r'\s+'), '');
     // 检查长度是否为4的倍数
@@ -17,42 +17,47 @@ import 'package:flutter_sing_box/flutter_sing_box.dart';
       throw Exception("Invalid base64 string");
     }
     String decodedString = utf8.decode(base64.decode(base64String));
+    return provideLinks(decodedString);
+  }
+
+  static List<Outbound> provideLinks(String data) {
     final List<Outbound> outbounds = [];
-    final List<String> lines = decodedString.split('\n');
-    for (var line in  lines) {
-      final uri = Uri.tryParse(line);
+    final List<String> lines = data.split(RegExp(r'[\r\n\s]+'));
+    for (var line in lines) {
+      if (line.trim().isEmpty) {
+        continue;
+      }
+      final uri = Uri.tryParse(line.trim());
       if (uri == null) {
         if (line.toUpperCase().startsWith('STATUS')) {
           // user info
           debugPrint(line);
-        } else {
-          continue;
         }
-      } else {
-        // parse uri
-        Outbound? outbound;
-        switch (uri.scheme) {
-          case ClashProxyType.hysteria2:
-            outbound = _parseHysteria2(uri);
-            break;
-          case ClashProxyType.hysteria:
-            outbound = _parseHysteria(uri);
-            break;
-          case ClashProxyType.anytls:
-            outbound = _parseAnytls(uri);
-            break;
-          case ClashProxyType.trojan:
-            outbound = _parseTrojan(uri);
-            break;
-          default:
-            break;
-        }
-        if (outbound != null) {
-          outbounds.add(outbound);
-        }
+        continue;
+      }
+      final outbound = _parseUri(uri);
+      if (outbound != null) {
+        outbounds.add(outbound);
       }
     }
     return outbounds;
+  }
+
+  static Outbound? _parseUri(Uri uri) {
+    switch (uri.scheme) {
+      case ClashProxyType.hysteria2:
+        return _parseHysteria2(uri);
+      case ClashProxyType.hysteria:
+        return _parseHysteria(uri);
+      case ClashProxyType.anytls:
+        return _parseAnytls(uri);
+      case ClashProxyType.trojan:
+        return _parseTrojan(uri);
+      case OutboundType.vless:
+        return _parseVless(uri);
+      default:
+        return null;
+    }
   }
   static Outbound? _parseHysteria2(Uri uri) {
     try {
@@ -148,4 +153,70 @@ import 'package:flutter_sing_box/flutter_sing_box.dart';
     }
   }
 
- }
+  static Outbound? _parseVless(Uri uri) {
+    try {
+      final Map<String, String> queryParams = uri.queryParameters;
+      final String tag = uri.fragment.isNotEmpty
+          ? Uri.decodeComponent(uri.fragment)
+          : uri.host;
+
+      final String transportType = queryParams['type'] ?? 'tcp';
+      Transport? transport;
+      if (transportType == OutboundTransportType.webSocket ||
+          transportType == 'ws') {
+        final Map<String, dynamic> headers = {};
+        if (queryParams['host']?.isNotEmpty == true) {
+          headers['Host'] = queryParams['host'];
+        }
+        transport = Transport(
+          type: OutboundTransportType.webSocket,
+          path: queryParams['path'],
+          headers: headers.isNotEmpty ? headers : null,
+        );
+      } else if (transportType == OutboundTransportType.gRPC ||
+          transportType == 'grpc') {
+        transport = Transport(type: OutboundTransportType.gRPC);
+      } else if (transportType == OutboundTransportType.httpUpgrade ||
+          transportType == 'httpupgrade') {
+        transport = Transport(type: OutboundTransportType.httpUpgrade);
+      }
+
+      final String? security = queryParams['security'];
+      final bool tlsEnabled = security == 'tls' || security == 'reality';
+      Tls? tls;
+      if (tlsEnabled) {
+        tls = Tls(
+          enabled: true,
+          insecure: queryParams['allowInsecure'] == '1',
+          disableSni: !(queryParams['sni']?.isNotEmpty == true),
+          serverName: queryParams['sni'] ?? '',
+          utls: queryParams['fp']?.isNotEmpty == true
+              ? Utls(enabled: true, fingerprint: queryParams['fp']!)
+              : null,
+          reality: security == 'reality'
+              ? Reality(
+                  enabled: true,
+                  publicKey: queryParams['pbk'],
+                  shortId: queryParams['sid'],
+                  spiderX: queryParams['spx'],
+                )
+              : null,
+        );
+      }
+
+      return Outbound(
+        type: OutboundType.vless,
+        tag: tag,
+        server: uri.host,
+        serverPort: uri.port,
+        uuid: uri.userInfo,
+        transport: transport,
+        tls: tls,
+        security: queryParams['encryption'],
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+
+}

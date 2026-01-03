@@ -84,6 +84,9 @@ Tls _$TlsFromJson(Map<String, dynamic> json) => Tls(
   utls: json['utls'] == null
       ? null
       : Utls.fromJson(json['utls'] as Map<String, dynamic>),
+  reality: json['reality'] == null
+      ? null
+      : Reality.fromJson(json['reality'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$TlsToJson(Tls instance) => <String, dynamic>{
@@ -93,6 +96,7 @@ Map<String, dynamic> _$TlsToJson(Tls instance) => <String, dynamic>{
   'insecure': instance.insecure,
   'server_name': ?instance.serverName,
   'utls': ?instance.utls?.toJson(),
+  'reality': ?instance.reality?.toJson(),
 };
 
 Utls _$UtlsFromJson(Map<String, dynamic> json) => Utls(
@@ -103,6 +107,20 @@ Utls _$UtlsFromJson(Map<String, dynamic> json) => Utls(
 Map<String, dynamic> _$UtlsToJson(Utls instance) => <String, dynamic>{
   'enabled': instance.enabled,
   'fingerprint': instance.fingerprint,
+};
+
+Reality _$RealityFromJson(Map<String, dynamic> json) => Reality(
+  enabled: json['enabled'] as bool,
+  publicKey: json['public_key'] as String?,
+  shortId: json['short_id'] as String?,
+  spiderX: json['spider_x'] as String?,
+);
+
+Map<String, dynamic> _$RealityToJson(Reality instance) => <String, dynamic>{
+  'enabled': instance.enabled,
+  'public_key': ?instance.publicKey,
+  'short_id': ?instance.shortId,
+  'spider_x': ?instance.spiderX,
 };
 
 Transport _$TransportFromJson(Map<String, dynamic> json) => Transport(

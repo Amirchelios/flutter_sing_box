@@ -62,6 +62,29 @@ class ProfileService {
     return profile;
   }
 
+  Future<Profile> importProfileFromContent({
+    required String content,
+    String? name,
+  }) async {
+    final profileId = ProfileManager().generateProfileId;
+    final profilePath = await ProfileManager().getProfilePath(profileId);
+    final profileName = _getInlineProfileName(content, name);
+    final typedProfile = TypedProfile(
+      type: ProfileType.local,
+      path: profilePath,
+      lastUpdated: DateTime.now().millisecondsSinceEpoch,
+    );
+    final singBox = await SingBoxConfigProvider.provide(content);
+    final profile = Profile(
+      id: profileId,
+      order: profileId,
+      name: profileName,
+      typed: typedProfile,
+    );
+    await ProfileManager().addProfile(profile, singBox);
+    return profile;
+  }
+
   String _getProfileName(Uri link, String? name, Map<String, dynamic> headers) {
     const contentDispositionKey = 'content-disposition';
     const profileTitleKey = 'profile-title';
@@ -99,6 +122,22 @@ class ProfileService {
     } else {
       return profileName;
     }
+  }
+
+  String _getInlineProfileName(String content, String? name) {
+    if (name?.trim().isNotEmpty == true) {
+      return name!.trim();
+    }
+    final Uri? uri = Uri.tryParse(content.trim());
+    if (uri != null) {
+      if (uri.fragment.isNotEmpty) {
+        return Uri.decodeComponent(uri.fragment);
+      }
+      if (uri.host.isNotEmpty) {
+        return uri.host;
+      }
+    }
+    return 'Local Profile';
   }
 
   TypedProfile _getTypedProfile(Uri link, Map<String, dynamic> headers, int? autoUpdateInterval, String filePath) {

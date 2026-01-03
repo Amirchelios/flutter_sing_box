@@ -5,6 +5,7 @@ import 'package:flutter_sing_box/flutter_sing_box.dart';
 import 'package:flutter_sing_box_example/pages/home_page.dart';
 import 'package:flutter_sing_box_example/utils/snackbar_util.dart';
 import 'package:mmkv/mmkv.dart';
+import 'package:flutter_sing_box_example/ui/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,12 +35,7 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       scaffoldMessengerKey: scaffoldMessengerKey,
-      theme: ThemeData.light(
-        useMaterial3: true,
-      ),
-      darkTheme: ThemeData.dark(
-        useMaterial3: true,
-      ),
+      theme: AppTheme.light(),
       home: const HomePage(),
     );
   }

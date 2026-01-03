@@ -28,9 +28,12 @@ class SingBoxConfigProvider {
                 .toList();
             singBox = await _fixSingBoxConfig({"outbounds": listMap});
           } catch (e) {
-            final outbounds = Base64Provider.provide(data);
+            List<Outbound> outbounds = [];
+            if (data.contains('://')) {
+              outbounds = Base64Provider.provideLinks(data);
+            }
             if (outbounds.isEmpty) {
-              throw Exception("Invalid base64 string");
+              outbounds = Base64Provider.provide(data);
             }
             outbounds.insert(
               0,
